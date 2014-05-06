@@ -10,6 +10,7 @@ http://closure-compiler.appspot.com/home
 import argparse
 import httplib
 import json
+import os
 import sys
 
 from urllib import urlencode
@@ -32,11 +33,29 @@ def main():
     parser.add_argument(
             '-f',
             '--file',
+            help='Filename of js we want to compile',
             required=True
+        )
+    parser.add_argument(
+            '-o',
+            '--outfile',
+            help='Filename to save the compiled js to',
+            required=False
         )
     args = parser.parse_args()
 
-    print(_compile(args.file, args.compilation))
+    sys.stdout.write("Compiling...\n")
+
+    minified_js = _compile(args.file, args.compilation)
+
+    sys.stdout.write("Writing minified file...\n")
+
+    if args.outfile:
+        _writefile(args.outfile, minified_js)
+    else:
+        _writefile(_min_filename(args.file), minified_js)
+
+    sys.exit(0)
 
 def _compile(filename, compilation):
     """
@@ -107,6 +126,28 @@ def _closure(
     data = response.read()
     conn.close()
     return data
+
+def _min_filename(filename):
+    """
+    Get the minified js filename
+
+    Keyword arguments:
+    filename - The js filename
+    """
+    filename_parts = os.path.splitext(filename)
+    return filename_parts[0] + '.min' + filename_parts[1]
+
+def _writefile(outfile, minjs):
+    """
+    Write the minified js to a file
+
+    Keyword arguments:
+    outfile - The output filename
+    minjs - The minified js
+    """
+    with open(outfile, 'wb') as f:
+        f.write(minjs)
+
 
 if '__main__' == __name__:
     main()
