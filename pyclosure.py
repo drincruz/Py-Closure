@@ -7,6 +7,8 @@ http://closure-compiler.appspot.com/home
 
 """
 
+__version__ = '0.1'
+
 import argparse
 import httplib
 import json
@@ -82,7 +84,7 @@ def _compile(filename, compilation):
         sys.stderr.write("[ERROR] %s\n" % (closure_return['errors']))
         sys.exit(1)
     else:
-        # Try and compile, check for errors
+        # Compile
         compiled_js = _closure(
                 _JS,
                 compilation,
