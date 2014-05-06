@@ -9,6 +9,8 @@ http://closure-compiler.appspot.com/home
 
 import argparse
 import httplib
+import json
+import sys
 
 from urllib import urlencode
 
@@ -20,13 +22,23 @@ def main():
     """
     parser = argparse.ArgumentParser(
             description="A command-line interface for Closure compiler")
-    parser.add_argument('-c', '--compilation', required=False)
-    parser.add_argument('-f', '--file', required=True)
+    parser.add_argument(
+            '-c',
+            '--compilation',
+            default='WHITESPACE_ONLY',
+            help='Compilation type: WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS',
+            required=False
+        )
+    parser.add_argument(
+            '-f',
+            '--file',
+            required=True
+        )
     args = parser.parse_args()
 
-    _compile(args.file, args.compilation)
+    print(_compile(args.file, args.compilation))
 
-def _compile(filename, compilation_level=None):
+def _compile(filename, compilation):
     """
     Handle the minification tasks
 
@@ -34,24 +46,56 @@ def _compile(filename, compilation_level=None):
     filename - Filename path of the file to minify
     compilation_level - Compilation levels accepted by Closure
     """
-    _CLOSURE = 'closure-compiler.appspot.com'
-    _CLOSURE_COMPILER = '/compile'
-
     # Read in the file to minify
     with open(filename, 'rb') as f:
         _JS = f.read()
 
-    # Set the compilation level (WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS)
-    if None == compilation_level:
-        _COMP_LEVEL = 'WHITESPACE_ONLY'
+    # Try and compile, check for errors
+    closure_return = json.loads(_closure(
+            _JS,
+            compilation,
+            'json',
+            'errors')
+        )
+
+    # Check for errors
+    if 'errors' in closure_return:
+        sys.stderr.write("[ERROR] %s\n" % (closure_return['errors']))
+        sys.exit(1)
     else:
-        _COMP_LEVEL = compilation_level
+        # Try and compile, check for errors
+        compiled_js = _closure(
+                _JS,
+                compilation,
+                'text',
+                'compiled_code'
+            )
+
+        return compiled_js
+
+def _closure(
+        js,
+        comp_level='WHITESPACE_ONLY',
+        output='text',
+        output_type='compiled_code'):
+    """
+    Process the REST call to Closure
+
+    Keyword arguments:
+    js - Javascript to minify
+    comp_level - Compilation options: WHITESPACE_ONLY, SIMPLE_OPTIMIZATIONS, ADVANCED_OPTIMIZATIONS
+    output - The output returned format: text, json, xml
+    output_type - The type of data returned: compiled_code, warnings, errors, statistics
+    """
+
+    _CLOSURE = 'closure-compiler.appspot.com'
+    _CLOSURE_COMPILER = '/compile'
 
     data = (
-            ('js_code', _JS),
-            ('compilation_level', _COMP_LEVEL),
-            ('output_format', 'json'),
-            ('output_info', 'compiled_code')
+            ('js_code', js),
+            ('compilation_level', comp_level),
+            ('output_format', output),
+            ('output_info', output_type)
         )
     headers = {
             'Content-type': 'application/x-www-form-urlencoded'
@@ -61,8 +105,8 @@ def _compile(filename, compilation_level=None):
     conn.request('POST', _CLOSURE_COMPILER, urlencode(data), headers)
     response = conn.getresponse()
     data = response.read()
-    print(data)
     conn.close()
+    return data
 
 if '__main__' == __name__:
     main()
