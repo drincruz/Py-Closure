@@ -44,11 +44,37 @@ def main():
             help='Filename to save the compiled js to',
             required=False
         )
+    parser.add_argument(
+            '-m',
+            '--minify',
+            help='Minify the js',
+            action="store_true"
+        )
+    parser.add_argument(
+            '-e',
+            '--error_check',
+            help='Check the js for compilation errors',
+            action="store_true"
+        )
     args = parser.parse_args()
 
-    sys.stdout.write("Compiling...\n")
+    # Read in the file to minify
+    with open(args.file, 'rb') as f:
+        _JS = f.read()
 
-    minified_js = _compile(args.file, args.compilation)
+
+    if args.error_check:
+        # Check the js for compilation errors first
+        if False == _error_check(_JS, args.compilation):
+            sys.exit(1)
+
+        # Exit after error check success
+        sys.stdout.write("%s compiled successfully.\n" % args.file)
+        sys.exit(0)
+    else:
+        # Default to just minifying
+        sys.stdout.write("Compiling %s...\n" % args.file)
+        minified_js = _compile(_JS, args.compilation)
 
     sys.stdout.write("Writing minified file...\n")
 
@@ -59,21 +85,36 @@ def main():
 
     sys.exit(0)
 
-def _compile(filename, compilation):
+def _compile(js, compilation):
     """
     Handle the minification tasks
 
     Keyword arguments:
-    filename - Filename path of the file to minify
+    js - Javascript to minify
     compilation_level - Compilation levels accepted by Closure
     """
-    # Read in the file to minify
-    with open(filename, 'rb') as f:
-        _JS = f.read()
 
+    # Compile
+    compiled_js = _closure(
+            js,
+            compilation,
+            'text',
+            'compiled_code'
+        )
+
+    return compiled_js
+
+def _error_check(js, compilation):
+    """
+    Check for any errors in compiling
+
+    Keyword arguments:
+    filename - Filename path of the file to check
+    compilation - Compilation levels accepted by Closure
+    """
     # Try and compile, check for errors
     closure_return = json.loads(_closure(
-            _JS,
+            js,
             compilation,
             'json',
             'errors')
@@ -82,17 +123,9 @@ def _compile(filename, compilation):
     # Check for errors
     if 'errors' in closure_return:
         sys.stderr.write("[ERROR] %s\n" % (closure_return['errors']))
-        sys.exit(1)
+        return False
     else:
-        # Compile
-        compiled_js = _closure(
-                _JS,
-                compilation,
-                'text',
-                'compiled_code'
-            )
-
-        return compiled_js
+        return True
 
 def _closure(
         js,
