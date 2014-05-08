@@ -109,7 +109,7 @@ def _error_check(js, compilation):
     Check for any errors in compiling
 
     Keyword arguments:
-    filename - Filename path of the file to check
+    js - Javascript to check for errors
     compilation - Compilation levels accepted by Closure
     """
     # Try and compile, check for errors
